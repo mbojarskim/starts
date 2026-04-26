@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Timer Start - Wysyłanie na komputer</title>
+    <title>Timer Start - DZIAŁA!</title>
     <style>
         * {
             user-select: none;
@@ -166,6 +166,7 @@
             font-family: monospace;
             font-size: 0.9rem;
             margin-bottom: 8px;
+            box-sizing: border-box;
         }
         
         .config-panel label {
@@ -181,6 +182,14 @@
             border-radius: 12px;
             font-size: 0.9rem;
             margin-top: 8px;
+            width: 100%;
+            border: none;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .save-config:active {
+            transform: scale(0.98);
         }
     </style>
 </head>
@@ -206,22 +215,22 @@
         
         <!-- Status połączenia -->
         <div class="status" id="status">
-            ⚡ Konfiguracja...
+            ⚡ Wpisz adres serwera i kliknij "Testuj"
         </div>
         
         <!-- Panel konfiguracji serwera -->
         <div class="config-panel">
             <label>📡 Adres komputera (IP:port)</label>
-            <input type="text" id="serverUrl" placeholder="np. 192.168.1.100:3000" value="192.168.1.100:3000">
-            <button class="save-config" id="saveConfigBtn">💾 Zapisz i testuj</button>
+            <input type="text" id="serverUrl" placeholder="np. 192.168.1.100:3000">
+            <button class="save-config" id="testBtn">🔌 Testuj połączenie</button>
+            <button class="save-config" id="saveConfigBtn" style="background:#22c55e; margin-top:5px;">💾 Zapisz konfigurację</button>
         </div>
     </div>
 
     <script>
-        // --- Konfiguracja ---
+        // --- Zmienne ---
         let currentRaceNumber = 1;
-        let lastSentTime = null;
-        let serverBaseUrl = localStorage.getItem('serverUrl') || '';
+        let serverBaseUrl = localStorage.getItem('timerServerUrl') || '';
         
         // --- Elementy DOM ---
         const minusBtn = document.getElementById('minusBtn');
@@ -231,11 +240,13 @@
         const lastTimeSpan = document.getElementById('lastTime');
         const statusDiv = document.getElementById('status');
         const serverUrlInput = document.getElementById('serverUrl');
+        const testBtn = document.getElementById('testBtn');
         const saveConfigBtn = document.getElementById('saveConfigBtn');
         
         // --- Wczytaj zapisaną konfigurację ---
         if (serverBaseUrl) {
             serverUrlInput.value = serverBaseUrl;
+            statusDiv.innerHTML = `📡 Zapisan adres: ${serverBaseUrl}<br>Kliknij "Testuj" aby sprawdzić`;
         }
         
         // --- Aktualizacja wyświetlania numeru biegu ---
@@ -265,7 +276,7 @@
                     audioCtx.resume();
                 }
             } catch(e) {
-                console.warn("Dźwięk niedostępny", e);
+                console.warn("Dźwięk:", e);
             }
         }
         
@@ -279,110 +290,129 @@
             return `${hours}:${minutes}:${seconds}.${ms}`;
         }
         
-        // --- WYSYŁANIE DANYCH DO KOMPUTERA ---
-        async function sendToComputer(raceNumber, time) {
-            if (!serverBaseUrl) {
-                statusDiv.textContent = '❌ Brak adresu serwera! Wpisz IP komputera';
+        // --- Funkcja do budowania URL ---
+        function buildUrl(endpoint) {
+            let base = serverBaseUrl;
+            if (!base) return null;
+            
+            // Usuń protokół jeśli jest
+            base = base.replace(/^https?:\/\//, '');
+            // Usuń końcowy slash
+            base = base.replace(/\/$/, '');
+            
+            return `http://${base}${endpoint}`;
+        }
+        
+        // --- TEST połączenia ---
+        async function testConnection() {
+            const inputUrl = serverUrlInput.value.trim();
+            if (!inputUrl) {
+                statusDiv.innerHTML = '❌ Wpisz adres serwera! (np. 192.168.1.100:3000)';
                 statusDiv.className = 'status error';
                 return false;
             }
             
-            // Upewnij się, że URL ma protokół
-            let url = serverBaseUrl;
-            if (!url.startsWith('http')) {
-                url = 'http://' + url;
-            }
-            url = url.replace(/\/$/, '') + '/api/start';
+            // Tymczasowo użyj wpisanego adresu do testu
+            let testUrl = inputUrl;
+            testUrl = testUrl.replace(/^https?:\/\//, '');
+            testUrl = testUrl.replace(/\/$/, '');
+            testUrl = `http://${testUrl}/api/starts`;
+            
+            statusDiv.innerHTML = '🔄 Testowanie połączenia...';
+            statusDiv.className = 'status';
             
             try {
-                statusDiv.textContent = '📤 Wysyłanie...';
-                statusDiv.className = 'status';
-                
+                const response = await fetch(testUrl, { method: 'GET' });
+                if (response.ok) {
+                    const data = await response.json();
+                    statusDiv.innerHTML = `✅ POŁĄCZONO! Serwer odpowiada. Odebrano ${data.length} startów.`;
+                    statusDiv.className = 'status connected';
+                    return true;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `❌ BRAK POŁĄCZENIA!<br>Sprawdź: 1) Czy serwer działa (node server.js)? 2) Czy adres ${inputUrl} jest poprawny? 3) Czy telefon w tej samej WiFi?`;
+                statusDiv.className = 'status error';
+                return false;
+            }
+        }
+        
+        // --- Zapis konfiguracji ---
+        function saveConfig() {
+            const newUrl = serverUrlInput.value.trim();
+            if (!newUrl) {
+                statusDiv.innerHTML = '❌ Wpisz adres serwera przed zapisem!';
+                return;
+            }
+            
+            serverBaseUrl = newUrl;
+            localStorage.setItem('timerServerUrl', serverBaseUrl);
+            statusDiv.innerHTML = `💾 Zapisano adres: ${serverBaseUrl}<br>Kliknij "Testuj" aby sprawdzić połączenie`;
+            statusDiv.className = 'status';
+        }
+        
+        // --- WYSYŁANIE STARTU ---
+        async function sendStart() {
+            if (!serverBaseUrl) {
+                statusDiv.innerHTML = '❌ Najpierw wpisz adres serwera i kliknij "Zapisz konfigurację"!';
+                statusDiv.className = 'status error';
+                return;
+            }
+            
+            const url = buildUrl('/api/start');
+            if (!url) {
+                statusDiv.innerHTML = '❌ Błędny adres serwera!';
+                return;
+            }
+            
+            const currentTime = getFormattedTime();
+            
+            // Odtwórz dźwięk
+            playStartSound();
+            
+            // Wyświetl lokalnie
+            lastTimeSpan.innerHTML = `${currentTime} (Bieg ${currentRaceNumber})`;
+            
+            statusDiv.innerHTML = '📤 Wysyłanie na komputer...';
+            statusDiv.className = 'status';
+            
+            try {
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        raceNumber: raceNumber,
-                        time: time,
+                        raceNumber: currentRaceNumber,
+                        time: currentTime,
                         timestamp: new Date().toISOString()
                     })
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
-                    statusDiv.textContent = '✅ Wysłano! Czas zapisany na komputerze';
+                    statusDiv.innerHTML = `✅ WYSŁANO! Bieg ${currentRaceNumber} o godzinie ${currentTime}`;
                     statusDiv.className = 'status connected';
                     
-                    // Dodaj małe opóźnienie przed zmianą koloru
+                    if (navigator.vibrate) {
+                        navigator.vibrate(100);
+                    }
+                    
+                    // Po 2 sekundach wróć do normalnego statusu
                     setTimeout(() => {
-                        if (statusDiv.textContent === '✅ Wysłano! Czas zapisany na komputerze') {
-                            statusDiv.className = 'status';
-                            statusDiv.textContent = '✅ Gotowy do następnego startu';
+                        if (statusDiv.innerHTML.includes('WYSŁANO')) {
+                            statusDiv.innerHTML = `✅ Gotowy. Serwer: ${serverBaseUrl}`;
+                            statusDiv.className = 'status connected';
                         }
                     }, 2000);
-                    
-                    return true;
                 } else {
                     throw new Error(`HTTP ${response.status}`);
                 }
             } catch (error) {
-                console.error('Błąd wysyłania:', error);
-                statusDiv.textContent = `❌ Błąd: Nie mogę połączyć się z ${serverBaseUrl}. Sprawdź czy: 1) Serwer działa, 2) Telefon jest w tej samej sieci WiFi, 3) IP jest poprawne`;
+                console.error('Błąd:', error);
+                statusDiv.innerHTML = `❌ BŁĄD WYSYŁANIA!<br>Sprawdź czy serwer działa (node server.js)`;
                 statusDiv.className = 'status error';
-                return false;
             }
-        }
-        
-        // --- Test połączenia z serwerem ---
-        async function testConnection() {
-            if (!serverBaseUrl) {
-                statusDiv.textContent = '⚠️ Wpisz adres serwera i kliknij "Zapisz i testuj"';
-                return false;
-            }
-            
-            let url = serverBaseUrl;
-            if (!url.startsWith('http')) url = 'http://' + url;
-            url = url.replace(/\/$/, '') + '/api/starts';
-            
-            try {
-                const response = await fetch(url, { method: 'GET' });
-                if (response.ok) {
-                    const data = await response.json();
-                    statusDiv.textContent = `✅ Połączono! Odebrano ${data.length} startów (serwer działa)`;
-                    statusDiv.className = 'status connected';
-                    return true;
-                } else {
-                    throw new Error('Błąd odpowiedzi');
-                }
-            } catch (error) {
-                statusDiv.textContent = `❌ Brak połączenia - czy serwer jest uruchomiony? (node server.js)`;
-                statusDiv.className = 'status error';
-                return false;
-            }
-        }
-        
-        // --- GŁÓWNA AKCJA STARTU ---
-        async function onStart() {
-            // 1. Dźwięk
-            playStartSound();
-            
-            // 2. Pobierz czas
-            const currentTime = getFormattedTime();
-            
-            // 3. Wyświetl lokalnie
-            lastTimeSpan.textContent = `${currentTime} (Bieg ${currentRaceNumber})`;
-            
-            // 4. WYŚLIJ na komputer
-            const success = await sendToComputer(currentRaceNumber, currentTime);
-            
-            // 5. Wibracja
-            if (success && navigator.vibrate) {
-                navigator.vibrate(100);
-            }
-            
-            console.log(`Start: Bieg ${currentRaceNumber}, Czas: ${currentTime}, Wysłano: ${success}`);
         }
         
         // --- Zmiana numeru biegu ---
@@ -394,32 +424,15 @@
             updateRaceDisplay();
         }
         
-        // --- Zapis konfiguracji ---
-        function saveConfig() {
-            let newUrl = serverUrlInput.value.trim();
-            // Usuń protokół jeśli ktoś wpisał
-            newUrl = newUrl.replace(/^https?:\/\//, '');
-            serverBaseUrl = newUrl;
-            localStorage.setItem('serverUrl', serverBaseUrl);
-            
-            statusDiv.textContent = '🔄 Zapisanow
-            setTimeout(() => testConnection(), 500);
-        }
-        
         // --- Event Listeners ---
         minusBtn.addEventListener('click', () => changeRace(-1));
         plusBtn.addEventListener('click', () => changeRace(1));
-        startBtn.addEventListener('click', onStart);
+        startBtn.addEventListener('click', sendStart);
+        testBtn.addEventListener('click', testConnection);
         saveConfigBtn.addEventListener('click', saveConfig);
         
-        // Test połączenia przy starcie
-        setTimeout(() => {
-            if (serverBaseUrl) testConnection();
-        }, 1000);
-        
-        // Inicjalizacja
+        // --- Inicjalizacja ---
         updateRaceDisplay();
-        statusDiv.textContent = '⚡ Skonfiguruj adres IP komputera';
     </script>
 </body>
 </html>
