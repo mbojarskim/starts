@@ -213,6 +213,11 @@
             margin-top: 8px;
             word-break: break-all;
         }
+        
+        .sound-test {
+            background: #334155;
+            margin-top: 5px;
+        }
     </style>
 </head>
 <body>
@@ -246,6 +251,7 @@
             <input type="text" id="serverUrl" placeholder="np. 192.168.1.100:3000">
             <button class="test-btn" id="testBtn">🔌 TESTUJ POŁĄCZENIE</button>
             <button class="save-btn" id="saveBtn">💾 ZAPISZ I UŻYWAJ</button>
+            <button class="sound-test" id="testSoundBtn" style="background:#8b5cf6;">🔊 TEST DŹWIĘKU</button>
             <div class="manual-url" id="manualHint"></div>
         </div>
     </div>
@@ -254,6 +260,7 @@
         // --- Zmienne ---
         let currentRaceNumber = 1;
         let serverBaseUrl = localStorage.getItem('timerServerUrl') || '';
+        let audioElement = null;
         
         // --- Elementy DOM ---
         const minusBtn = document.getElementById('minusBtn');
@@ -265,6 +272,7 @@
         const serverUrlInput = document.getElementById('serverUrl');
         const testBtn = document.getElementById('testBtn');
         const saveBtn = document.getElementById('saveBtn');
+        const testSoundBtn = document.getElementById('testSoundBtn');
         const manualHint = document.getElementById('manualHint');
         
         // --- Wczytaj zapisaną konfigurację ---
@@ -273,48 +281,113 @@
             statusDiv.innerHTML = `📡 Zapisan adres: ${serverBaseUrl}<br>✅ Kliknij "TESTUJ" aby potwierdzić`;
         }
         
-        // --- Aktualizacja numeru biegu ---
-        function updateRaceDisplay() {
-            raceNumberSpan.textContent = currentRaceNumber;
-        }
-        
-        // --- Dźwięk startu ---
-        function playStartSound() {
+        // --- Funkcja do odtwarzania dźwięku z pliku MP3 ---
+        async function playStartSound() {
+            if (!serverBaseUrl) {
+                console.log("Brak adresu serwera");
+                return;
+            }
+            
+            // Przygotuj URL do pliku dźwiękowego
+            const soundUrl = `http://${serverBaseUrl}/start.mp3`;
+            
             try {
-                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                oscillator.frequency.value = 880;
-                gainNode.gain.value = 0.3;
-                
-                const now = audioCtx.currentTime;
-                oscillator.start(now);
-                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 1);
-                oscillator.stop(now + 0.3);
-                
-                if (audioCtx.state === 'suspended') {
-                    audioCtx.resume();
+                // Metoda 1: Użyj Audio API
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.currentTime = 0;
                 }
+                
+                audioElement = new Audio(soundUrl);
+                audioElement.volume = 1.0;
+                
+                // Wymagane dla przeglądarek mobilnych - trzeba "obudzić" audio
+                audioElement.play().catch(e => {
+                    console.log("Auto-play blokowane, próbuję dalej...", e);
+                    // Alternatywna metoda - tworzenie nowego kontekstu
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscillator.frequency.value = 880;
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+                    oscillator.stop(audioCtx.currentTime + 0.2);
+                    
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                });
+                
+                console.log("Odtwarzam dźwięk:", soundUrl);
             } catch(e) {
-                console.warn("Dźwięk:", e);
+                console.warn("Błąd odtwarzania MP3, używam fallbacku", e);
+                // Fallback - syntetyczny dźwięk
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioCtx.createOscillator();
+                    const gainNode = audioCtx.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioCtx.destination);
+                    oscillator.frequency.value = 880;
+                    gainNode.gain.value = 0.3;
+                    oscillator.start();
+                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
+                    oscillator.stop(audioCtx.currentTime + 0.2);
+                    
+                    if (audioCtx.state === 'suspended') {
+                        audioCtx.resume();
+                    }
+                } catch(e2) {
+                    console.error("Nawet fallback nie działa");
+                }
             }
         }
         
-        // --- Formatowanie czasu ---
-        function getFormattedTime() {
-            const now = new Date();
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            const seconds = now.getSeconds().toString().padStart(2, '0');
-            const ms = now.getMilliseconds().toString().padStart(3, '0');
-            return `${hours}:${minutes}:${seconds}.${ms}`;
+        // --- Test dźwięku ---
+        async function testSound() {
+            if (!serverBaseUrl) {
+                statusDiv.innerHTML = '❌ Najpierw wpisz adres serwera i zapisz konfigurację!';
+                statusDiv.className = 'status error';
+                return;
+            }
+            
+            const soundUrl = `http://${serverBaseUrl}/start.mp3`;
+            manualHint.innerHTML = `Testuję dźwięk: ${soundUrl}`;
+            
+            try {
+                // Najpierw sprawdź czy plik istnieje
+                const checkResponse = await fetch(soundUrl, { method: 'HEAD' });
+                if (!checkResponse.ok) {
+                    throw new Error(`Plik start.mp3 nie istnieje na serwerze (HTTP ${checkResponse.status})`);
+                }
+                
+                statusDiv.innerHTML = `🔊 Test dźwięku... (odtwarzam ${soundUrl})`;
+                statusDiv.className = 'status';
+                
+                const testAudio = new Audio(soundUrl);
+                testAudio.volume = 1.0;
+                await testAudio.play();
+                
+                statusDiv.innerHTML = `✅ Dźwięk działa! Plik start.mp3 jest dostępny.`;
+                statusDiv.className = 'status success';
+                setTimeout(() => {
+                    if (statusDiv.innerHTML.includes('Dźwięk działa')) {
+                        statusDiv.innerHTML = `✅ Gotowy. Dźwięk załadowany.`;
+                    }
+                }, 2000);
+            } catch (error) {
+                console.error('Błąd dźwięku:', error);
+                statusDiv.innerHTML = `❌ BŁĄD: ${error.message}<br><br>📌 Upewnij się, że:<br>1. Plik start.mp3 jest w folderze serwera<br>2. Serwer został zrestartowany po dodaniu pliku<br>3. Plik nazywa się dokładnie "start.mp3" (małe litery)`;
+                statusDiv.className = 'status error';
+            }
         }
         
-        // --- TEST POŁĄCZENIA (TAKA SAMA METODA JAK DZIAŁA W PRZEGLĄDARCE) ---
+        // --- Test połączenia ---
         async function testConnection() {
             let url = serverUrlInput.value.trim();
             if (!url) {
@@ -323,23 +396,19 @@
                 return false;
             }
             
-            // Usuń http:// jeśli ktoś wpisał
             url = url.replace(/^https?:\/\//, '');
             url = url.replace(/\/$/, '');
             
-            // Zbuduj pełny URL do API
             const fullUrl = `http://${url}/api/starts`;
             
             statusDiv.innerHTML = `🔄 Łączę z ${fullUrl}...`;
             statusDiv.className = 'status';
-            
-            // Pokaż w podpowiedzi jaki URL testujemy
             manualHint.innerHTML = `Testuję: ${fullUrl}`;
             
             try {
                 const response = await fetch(fullUrl, {
                     method: 'GET',
-                    mode: 'cors'  // Jawnie prosimy o CORS
+                    mode: 'cors'
                 });
                 
                 if (response.ok) {
@@ -347,17 +416,15 @@
                     const count = Array.isArray(data) ? data.length : '?';
                     statusDiv.innerHTML = `✅ POŁĄCZONO! ✅<br>Serwer działa, odebrano ${count} startów.<br>Adres: ${url}`;
                     statusDiv.className = 'status connected';
-                    
-                    // Zapisz tymczasowo
                     serverBaseUrl = url;
-                    manualHint.innerHTML = `✅ Połączenie działa! Kliknij "ZAPISZ" aby używać.`;
+                    manualHint.innerHTML = `✅ Połączenie działa! Kliknij "ZAPISZ" a potem "TEST DŹWIĘKU".`;
                     return true;
                 } else {
                     throw new Error(`HTTP ${response.status}`);
                 }
             } catch (error) {
                 console.error('Test error:', error);
-                statusDiv.innerHTML = `❌ BRAK POŁĄCZENIA ❌<br>Nie mogę połączyć się z ${url}<br><br>📌 SPRAWDŹ:<br>1. Czy serwer działa? (node server.js)<br>2. Czy adres jest poprawny?<br>3. Czy telefon i komputer w tej samej WiFi?<br><br>💡 WSKAZÓWKA: W przeglądarce działa? Wpisz ręcznie:<br>http://${url}/api/starts`;
+                statusDiv.innerHTML = `❌ BRAK POŁĄCZENIA ❌<br>Nie mogę połączyć się z ${url}<br><br>📌 SPRAWDŹ:<br>1. Czy serwer działa? (node server.js)<br>2. Czy adres jest poprawny?<br>3. Czy telefon i komputer w tej samej WiFi?`;
                 statusDiv.className = 'status error';
                 return false;
             }
@@ -375,7 +442,7 @@
             serverBaseUrl = cleanUrl;
             localStorage.setItem('timerServerUrl', serverBaseUrl);
             
-            statusDiv.innerHTML = `💾 Zapisano: ${serverBaseUrl}<br>✅ Gotowy do użycia! Kliknij START.`;
+            statusDiv.innerHTML = `💾 Zapisano: ${serverBaseUrl}<br>✅ Gotowy do użycia! Kliknij "TEST DŹWIĘKU" aby sprawdzić.`;
             statusDiv.className = 'status connected';
             manualHint.innerHTML = `Zapisano: http://${serverBaseUrl}/api/start`;
         }
@@ -391,11 +458,11 @@
             const fullUrl = `http://${serverBaseUrl}/api/start`;
             const currentTime = getFormattedTime();
             
-            // Odtwórz dźwięk i wibracja
-            playStartSound();
+            // Odtwórz dźwięk z pliku MP3
+            await playStartSound();
+            
             if (navigator.vibrate) navigator.vibrate(50);
             
-            // Wyświetl lokalnie
             lastTimeSpan.innerHTML = `${currentTime} (Bieg ${currentRaceNumber})`;
             statusDiv.innerHTML = `📤 Wysyłanie do ${serverBaseUrl}...`;
             statusDiv.className = 'status';
@@ -414,13 +481,11 @@
                 });
                 
                 if (response.ok) {
-                    const data = await response.json();
                     statusDiv.innerHTML = `✅ WYSŁANO! 🎯<br>Bieg ${currentRaceNumber} | Czas: ${currentTime}`;
                     statusDiv.className = 'status success';
                     
                     if (navigator.vibrate) navigator.vibrate(100);
                     
-                    // Dłuższy komunikat sukcesu
                     setTimeout(() => {
                         if (statusDiv.innerHTML.includes('WYSŁANO')) {
                             statusDiv.innerHTML = `✅ Gotowy. Serwer: ${serverBaseUrl}`;
@@ -437,13 +502,23 @@
             }
         }
         
+        // --- Formatowanie czasu ---
+        function getFormattedTime() {
+            const now = new Date();
+            const hours = now.getHours().toString().padStart(2, '0');
+            const minutes = now.getMinutes().toString().padStart(2, '0');
+            const seconds = now.getSeconds().toString().padStart(2, '0');
+            const ms = now.getMilliseconds().toString().padStart(3, '0');
+            return `${hours}:${minutes}:${seconds}.${ms}`;
+        }
+        
         // --- Zmiana numeru biegu ---
         function changeRace(delta) {
             let newValue = currentRaceNumber + delta;
             if (newValue < 1) newValue = 1;
             if (newValue > 99) newValue = 99;
             currentRaceNumber = newValue;
-            updateRaceDisplay();
+            raceNumberSpan.textContent = currentRaceNumber;
         }
         
         // --- Event Listeners ---
@@ -452,9 +527,10 @@
         startBtn.addEventListener('click', sendStart);
         testBtn.addEventListener('click', testConnection);
         saveBtn.addEventListener('click', saveConfig);
+        testSoundBtn.addEventListener('click', testSound);
         
         // --- Inicjalizacja ---
-        updateRaceDisplay();
+        raceNumberSpan.textContent = currentRaceNumber;
         
         // Automatyczny test przy starcie jeśli jest zapisany adres
         if (serverBaseUrl) {
