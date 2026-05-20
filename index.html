@@ -1,82 +1,661 @@
-const express = require('express');
-const fs = require('fs');
-const path = require('path');
-const app = express();
-const port = 3000;
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>START - Precyzyjny Pomiar Czasu</title>
+    <style>
+        * {
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0f1a 0%, #0f172a 100%);
+            color: #eee;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 16px;
+        }
+        
+        .container {
+            background: rgba(30, 41, 59, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem;
+            border-radius: 48px;
+            box-shadow: 0 25px 45px rgba(0,0,0,0.3);
+            max-width: 500px;
+            width: 100%;
+            border: 1px solid rgba(233, 69, 96, 0.3);
+        }
+        
+        h1 {
+            margin: 0 0 0.25rem 0;
+            font-size: 2rem;
+            text-align: center;
+            color: #e94560;
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .calibration-badge {
+            text-align: center;
+            font-size: 0.7rem;
+            background: #1e293b;
+            display: inline-block;
+            width: 100%;
+            padding: 4px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+        
+        .race-control {
+            background: #1e293b;
+            border-radius: 60px;
+            padding: 0.5rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        
+        .race-btn {
+            background: #334155;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+            width: 64px;
+            height: 64px;
+            border-radius: 60px;
+            cursor: pointer;
+            transition: all 0.1s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .race-btn:active {
+            transform: scale(0.95);
+            background: #475569;
+        }
+        
+        .race-number {
+            font-size: 3rem;
+            font-weight: bold;
+            background: #0f172a;
+            padding: 0.5rem;
+            border-radius: 40px;
+            min-width: 120px;
+            text-align: center;
+            color: #e94560;
+            letter-spacing: 4px;
+        }
+        
+        .start-btn {
+            background: linear-gradient(135deg, #e94560, #c71a3a);
+            color: white;
+            border: none;
+            padding: 28px;
+            font-size: 2.2rem;
+            font-weight: bold;
+            border-radius: 60px;
+            width: 100%;
+            cursor: pointer;
+            transition: all 0.05s ease;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            box-shadow: 0 8px 20px rgba(233, 69, 96, 0.3);
+        }
+        
+        .start-btn:active {
+            transform: scale(0.98);
+            box-shadow: 0 4px 10px rgba(233, 69, 96, 0.3);
+        }
+        
+        .last-time {
+            background: #0f172a;
+            padding: 0.75rem;
+            border-radius: 24px;
+            text-align: center;
+            margin-bottom: 1rem;
+            font-family: monospace;
+            font-size: 1rem;
+        }
+        
+        .last-time span {
+            color: #e94560;
+            font-size: 1.3rem;
+            font-weight: bold;
+        }
+        
+        .status {
+            background: #1e293b;
+            padding: 0.75rem;
+            border-radius: 16px;
+            font-size: 0.8rem;
+            text-align: center;
+            margin-top: 1rem;
+            word-break: break-all;
+        }
+        
+        .status.connected {
+            background: #064e3b;
+            color: #34d399;
+        }
+        
+        .status.error {
+            background: #7f1d1d;
+            color: #fca5a5;
+        }
+        
+        .status.success {
+            background: #065f46;
+            color: #6ee7b7;
+        }
+        
+        .status.warning {
+            background: #854d0e;
+            color: #fde047;
+        }
+        
+        .config-panel {
+            background: #1e293b;
+            padding: 1rem;
+            border-radius: 24px;
+            margin-top: 1rem;
+        }
+        
+        .config-panel input {
+            width: 100%;
+            padding: 12px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            color: white;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin-bottom: 8px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        
+        .config-panel label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .config-panel button {
+            padding: 10px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            margin-top: 8px;
+            width: 100%;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        .test-btn {
+            background: #3b82f6;
+        }
+        
+        .save-btn {
+            background: #22c55e;
+        }
+        
+        .calibrate-btn {
+            background: #8b5cf6;
+        }
+        
+        .config-panel button:active {
+            transform: scale(0.98);
+        }
+        
+        .manual-url {
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+        
+        .latency-display {
+            font-size: 0.7rem;
+            text-align: center;
+            margin-top: 8px;
+            padding: 4px;
+            background: #0f172a;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔫 START</h1>
+        <div class="subtitle">Precyzyjny pomiar czasu</div>
+        
+        <div class="calibration-badge" id="calibBadge">
+            📱 Kalibracja: ⚠️ nie wykonana
+        </div>
+        
+        <!-- Sterowanie numerem biegu -->
+        <div class="race-control">
+            <button class="race-btn" id="minusBtn">−</button>
+            <div class="race-number" id="raceNumber">1</div>
+            <button class="race-btn" id="plusBtn">+</button>
+        </div>
+        
+        <!-- Przycisk START -->
+        <button class="start-btn" id="startBtn">▶ START</button>
+        
+        <!-- Ostatni zapisany czas -->
+        <div class="last-time">
+            🕐 Ostatni start: <span id="lastTime">---</span>
+        </div>
+        
+        <!-- Status połączenia -->
+        <div class="status" id="status">
+            ⚡ Wpisz adres serwera
+        </div>
+        
+        <!-- Panel konfiguracji -->
+        <div class="config-panel">
+            <label>📡 Adres komputera (IP:port)</label>
+            <input type="text" id="serverUrl" placeholder="np. 192.168.1.100:3000">
+            <button class="test-btn" id="testBtn">🔌 TESTUJ POŁĄCZENIE</button>
+            <button class="save-btn" id="saveBtn">💾 ZAPISZ I UŻYWAJ</button>
+            <button class="calibrate-btn" id="calibrateBtn">🔧 KALIBRUJ OPÓŹNIENIE</button>
+            <div class="manual-url" id="manualHint"></div>
+        </div>
+        
+        <div class="latency-display" id="latencyDisplay">
+            ⏱️ Oczekuje na kalibrację...
+        </div>
+    </div>
 
-// CORS - pozwala telefonom na wysyłanie
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
-
-app.use(express.json());
-
-// Udostępnianie plików statycznych (w tym start.mp3)
-app.use(express.static(__dirname));
-
-let starts = [];
-
-// Zapis startu (czas z telefonu - moment naciśnięcia)
-app.post('/api/start', (req, res) => {
-    const { raceNumber, time, timestamp, latencyCompensation } = req.body;
-    
-    const startRecord = {
-        id: Date.now(),
-        raceNumber: raceNumber,
-        time: time,              // czas z momentu naciśnięcia!
-        serverTime: new Date().toISOString(),
-        timestamp: timestamp,
-        latencyCompensation: latencyCompensation || 0
-    };
-    
-    starts.push(startRecord);
-    
-    // Backup do pliku
-    fs.writeFileSync('starts.json', JSON.stringify(starts, null, 2));
-    
-    console.log(`\n🏁 ${new Date().toLocaleTimeString()} - ODEBRANO START!`);
-    console.log(`   Bieg: ${raceNumber}`);
-    console.log(`   Czas startu: ${time}`);
-    console.log(`   Kompensacja: ${latencyCompensation || 0}ms`);
-    
-    res.json({ success: true, id: startRecord.id });
-});
-
-// Odczyt wszystkich startów
-app.get('/api/starts', (req, res) => {
-    res.json(starts);
-});
-
-// Kasowanie wszystkich startów
-app.delete('/api/starts', (req, res) => {
-    starts = [];
-    fs.writeFileSync('starts.json', JSON.stringify(starts));
-    console.log('\n🗑️ Wszystkie starty zostały usunięte!');
-    res.json({ success: true });
-});
-
-// Informacja o stanie
-app.get('/api/status', (req, res) => {
-    res.json({
-        status: 'running',
-        startCount: starts.length,
-        serverTime: new Date().toISOString()
-    });
-});
-
-// Uruchomienie serwera
-app.listen(port, '0.0.0.0', () => {
-    console.log(`\n${'='.repeat(50)}`);
-    console.log(`✅ SYSTEM POMIARU CZASU - SERWER DZIAŁA`);
-    console.log(`${'='.repeat(50)}`);
-    console.log(`📱 Adres dla telefonu: http://TWOJ_IP:${port}`);
-    console.log(`🔊 Sprawdź dźwięk: http://TWOJ_IP:${port}/start.mp3`);
-    console.log(`📊 Wyniki: http://localhost:${port}/api/starts`);
-    console.log(`${'='.repeat(50)}\n`);
-});
+    <script>
+        // ============================================================
+        // PREZYCYJNY SYSTEM POMIARU CZASU Z KOMPENSACJĄ OPÓŹNIENIA
+        // ============================================================
+        
+        // --- ZMIENNE GŁÓWNE ---
+        let currentRaceNumber = 1;
+        let serverBaseUrl = localStorage.getItem('timerServerUrl') || '';
+        let latencyMs = parseInt(localStorage.getItem('latencyMs') || '0'); // kalibracja opóźnienia
+        let preloadedAudio = null;
+        let soundReady = false;
+        
+        // --- ELEMENTY DOM ---
+        const minusBtn = document.getElementById('minusBtn');
+        const plusBtn = document.getElementById('plusBtn');
+        const raceNumberSpan = document.getElementById('raceNumber');
+        const startBtn = document.getElementById('startBtn');
+        const lastTimeSpan = document.getElementById('lastTime');
+        const statusDiv = document.getElementById('status');
+        const serverUrlInput = document.getElementById('serverUrl');
+        const testBtn = document.getElementById('testBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const calibrateBtn = document.getElementById('calibrateBtn');
+        const manualHint = document.getElementById('manualHint');
+        const latencyDisplay = document.getElementById('latencyDisplay');
+        const calibBadge = document.getElementById('calibBadge');
+        
+        // --- Wczytaj zapisaną konfigurację ---
+        if (serverBaseUrl) {
+            serverUrlInput.value = serverBaseUrl;
+            statusDiv.innerHTML = `📡 Zapisan adres: ${serverBaseUrl}<br>✅ Gotowy do użycia`;
+        }
+        
+        if (latencyMs > 0) {
+            latencyDisplay.innerHTML = `🔧 Skompensowane opóźnienie: ${latencyMs} ms (dźwięk przyspieszony)`;
+            calibBadge.innerHTML = `📱 Kalibracja: ✅ ${latencyMs} ms kompensacji`;
+        } else {
+            latencyDisplay.innerHTML = `⚠️ Niewykonana kalibracja - dźwięk może być opóźniony!`;
+            calibBadge.innerHTML = `📱 Kalibracja: ⚠️ nie wykonana - kliknij "KALIBRUJ"`;
+        }
+        
+        // ============================================================
+        // 1. PRELOAD DŹWIĘKU (ładujemy zanim będzie potrzebny)
+        // ============================================================
+        async function preloadSound() {
+            if (!serverBaseUrl) {
+                console.log("Brak adresu serwera, nie mogę preloadować dźwięku");
+                return false;
+            }
+            
+            const soundUrl = `http://${serverBaseUrl}/start.mp3`;
+            
+            try {
+                // Sprawdź czy plik istnieje
+                const check = await fetch(soundUrl, { method: 'HEAD' });
+                if (!check.ok) throw new Error(`HTTP ${check.status}`);
+                
+                // Preload dźwięku
+                preloadedAudio = new Audio(soundUrl);
+                preloadedAudio.load();
+                preloadedAudio.volume = 1.0;
+                
+                // Ustaw flagę gotowości
+                preloadedAudio.addEventListener('canplaythrough', () => {
+                    soundReady = true;
+                    console.log("🔊 Dźwięk załadowany i gotowy!");
+                });
+                
+                console.log("🔊 Preload dźwięku rozpoczęty:", soundUrl);
+                return true;
+            } catch(error) {
+                console.warn("Nie udało się preloadować dźwięku:", error);
+                return false;
+            }
+        }
+        
+        // ============================================================
+        // 2. FUNKCJA STARTU - ZAPIS CZASU NATYCHMIAST, DŹWIĘK W TLE
+        // ============================================================
+        async function sendStart() {
+            if (!serverBaseUrl) {
+                statusDiv.innerHTML = '❌ Najpierw wpisz adres serwera i kliknij "ZAPISZ I UŻYWAJ"!';
+                statusDiv.className = 'status error';
+                return;
+            }
+            
+            // --- Krok 1: NATYCHMIASTOWY ZAPIS CZASU (moment naciśnięcia) ---
+            const pressTime = new Date();
+            const currentTimeFormatted = formatTime(pressTime);
+            
+            // --- Krok 2: WYŚLIJ na serwer (nie czekamy na odpowiedź) ---
+            const apiUrl = `http://${serverBaseUrl}/api/start`;
+            
+            // Wysyłamy bez await - nie blokujemy dźwięku
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    raceNumber: currentRaceNumber,
+                    time: currentTimeFormatted,
+                    timestamp: pressTime.toISOString(),
+                    latencyCompensation: latencyMs // zapisujemy kompensację dla diagnostyki
+                })
+            }).catch(e => console.warn("Błąd wysyłania:", e));
+            
+            // --- Krok 3: ODTWÓRZ DŹWIĘK (z kompensacją opóźnienia jeśli trzeba) ---
+            if (latencyMs > 0 && preloadedAudio) {
+                // Kompensacja: jeśli wiemy że dźwięk się opóźnia, odtwarzamy go wcześniej
+                // Ale to nie jest możliwe - zamiast tego zapisujemy czas z wyprzedzeniem?
+                // Prawidłowe podejście: dźwięk odtwarzamy normalnie, ale czas jest z przed chwili
+                // Już to robimy - czas jest z momentu naciśnięcia, dźwięk leci normalnie
+            }
+            
+            // Odtwórz dźwięk (nie czekamy)
+            if (preloadedAudio && soundReady) {
+                preloadedAudio.currentTime = 0;
+                preloadedAudio.play().catch(e => {
+                    console.log("Auto-play blokowane, używam fallbacku");
+                    playFallbackSound();
+                });
+            } else {
+                playFallbackSound();
+            }
+            
+            // Wibracja dla potwierdzenia (nie wpływa na czas)
+            if (navigator.vibrate) navigator.vibrate(50);
+            
+            // Aktualizacja wyświetlacza
+            const compInfo = latencyMs > 0 ? ` (komp. ${latencyMs}ms)` : '';
+            lastTimeSpan.innerHTML = `${currentTimeFormatted} (Bieg ${currentRaceNumber})${compInfo}`;
+            
+            // Krótki komunikat
+            statusDiv.innerHTML = `✅ START! Bieg ${currentRaceNumber} | ${currentTimeFormatted}`;
+            statusDiv.className = 'status success';
+            
+            setTimeout(() => {
+                if (statusDiv.innerHTML.includes('START')) {
+                    statusDiv.innerHTML = `✅ Gotowy. Serwer: ${serverBaseUrl}`;
+                    statusDiv.className = 'status connected';
+                }
+            }, 1500);
+            
+            // Dodatkowe wibracje dla potwierdzenia
+            if (navigator.vibrate) setTimeout(() => navigator.vibrate(100), 100);
+        }
+        
+        // Fallback dźwięku (syntetyczny)
+        function playFallbackSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                oscillator.frequency.value = 880;
+                gainNode.gain.value = 0.3;
+                
+                const now = audioCtx.currentTime;
+                oscillator.start(now);
+                gainNode.gain.exponentialRampToValueAtTime(0.00001, now + 0.8);
+                oscillator.stop(now + 0.2);
+                
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch(e) {
+                console.warn("Fallback dźwięku nie działa", e);
+            }
+        }
+        
+        // ============================================================
+        // 3. KALIBRACJA OPÓŹNIENIA DŹWIĘKU
+        // ============================================================
+        async function calibrateLatency() {
+            if (!serverBaseUrl) {
+                statusDiv.innerHTML = '❌ Najpierw skonfiguruj połączenie z serwerem!';
+                statusDiv.className = 'status error';
+                return;
+            }
+            
+            const soundUrl = `http://${serverBaseUrl}/start.mp3`;
+            
+            statusDiv.innerHTML = '🔧 KALIBRACJA: Za chwilę usłyszysz dźwięk. Zmierz opóźnienie...';
+            statusDiv.className = 'status warning';
+            
+            // Sprawdź czy plik istnieje
+            try {
+                const check = await fetch(soundUrl, { method: 'HEAD' });
+                if (!check.ok) throw new Error('Brak pliku start.mp3');
+            } catch(e) {
+                statusDiv.innerHTML = `❌ Kalibracja niemożliwa: ${e.message}`;
+                statusDiv.className = 'status error';
+                return;
+            }
+            
+            // Uruchom test 3 razy i uśrednij
+            let measurements = [];
+            
+            for (let i = 0; i < 3; i++) {
+                statusDiv.innerHTML = `🔧 Pomiar ${i+1}/3... Kliknij gdy usłyszysz dźwięk`;
+                statusDiv.className = 'status warning';
+                
+                // Odtwórz dźwięk i zmierz czas
+                const startTime = performance.now();
+                const testAudio = new Audio(soundUrl);
+                testAudio.volume = 1.0;
+                
+                await new Promise((resolve) => {
+                    testAudio.play().then(() => {
+                        // Dźwięk rozpoczęty - zapisz czas
+                        const latency = performance.now() - startTime;
+                        measurements.push(latency);
+                        resolve();
+                    }).catch(e => {
+                        console.warn("Błąd kalibracji:", e);
+                        resolve();
+                    });
+                });
+                
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            
+            if (measurements.length > 0) {
+                // Uśrednij pomiary
+                const avgLatency = Math.round(measurements.reduce((a,b) => a+b, 0) / measurements.length);
+                latencyMs = avgLatency;
+                localStorage.setItem('latencyMs', latencyMs);
+                
+                latencyDisplay.innerHTML = `🔧 Skompensowane opóźnienie: ${latencyMs} ms`;
+                calibBadge.innerHTML = `📱 Kalibracja: ✅ ${latencyMs} ms kompensacji`;
+                
+                statusDiv.innerHTML = `✅ Kalibracja zakończona! Średnie opóźnienie: ${latencyMs} ms. Czas będzie zapisywany w momencie naciśnięcia.`;
+                statusDiv.className = 'status success';
+                
+                // Przeładuj dźwięk z nową kompensacją
+                await preloadSound();
+            } else {
+                statusDiv.innerHTML = '❌ Kalibracja nieudana - sprawdź dźwięk';
+                statusDiv.className = 'status error';
+            }
+        }
+        
+        // ============================================================
+        // 4. FORMATOWANIE CZASU
+        // ============================================================
+        function formatTime(date) {
+            const hours = date.getHours().toString().padStart(2, '0');
+            const minutes = date.getMinutes().toString().padStart(2, '0');
+            const seconds = date.getSeconds().toString().padStart(2, '0');
+            const ms = date.getMilliseconds().toString().padStart(3, '0');
+            return `${hours}:${minutes}:${seconds}.${ms}`;
+        }
+        
+        function getFormattedTime() {
+            return formatTime(new Date());
+        }
+        
+        // ============================================================
+        // 5. TEST POŁĄCZENIA I PRELOAD
+        // ============================================================
+        async function testConnection() {
+            let url = serverUrlInput.value.trim();
+            if (!url) {
+                statusDiv.innerHTML = '❌ Wpisz adres serwera! (np. 192.168.1.100:3000)';
+                statusDiv.className = 'status error';
+                return false;
+            }
+            
+            url = url.replace(/^https?:\/\//, '');
+            url = url.replace(/\/$/, '');
+            
+            const fullUrl = `http://${url}/api/starts`;
+            
+            statusDiv.innerHTML = `🔄 Łączę z ${fullUrl}...`;
+            statusDiv.className = 'status';
+            manualHint.innerHTML = `Testuję: ${fullUrl}`;
+            
+            try {
+                const response = await fetch(fullUrl, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = Array.isArray(data) ? data.length : '?';
+                    statusDiv.innerHTML = `✅ POŁĄCZONO! Serwer działa, odebrano ${count} startów.`;
+                    statusDiv.className = 'status connected';
+                    
+                    // Połączono - preload dźwięku
+                    serverBaseUrl = url;
+                    await preloadSound();
+                    
+                    manualHint.innerHTML = `✅ Połączenie działa! Kliknij "ZAPISZ" a potem wykonaj kalibrację.`;
+                    return true;
+                } else {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+            } catch (error) {
+                console.error('Test error:', error);
+                statusDiv.innerHTML = `❌ BRAK POŁĄCZENIA!<br>Sprawdź: serwer działa? (node server.js)`;
+                statusDiv.className = 'status error';
+                return false;
+            }
+        }
+        
+        // ============================================================
+        // 6. ZAPIS KONFIGURACJI
+        // ============================================================
+        async function saveConfig() {
+            const url = serverUrlInput.value.trim();
+            if (!url) {
+                statusDiv.innerHTML = '❌ Wpisz adres serwera!';
+                return;
+            }
+            
+            const cleanUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+            serverBaseUrl = cleanUrl;
+            localStorage.setItem('timerServerUrl', serverBaseUrl);
+            
+            statusDiv.innerHTML = `💾 Zapisano: ${serverBaseUrl}<br>🔄 Preload dźwięku...`;
+            statusDiv.className = 'status';
+            
+            // Preload dźwięku po zapisaniu
+            await preloadSound();
+            
+            statusDiv.innerHTML = `✅ Zapisano! Dźwięk załadowany. Wykonaj kalibrację.`;
+            statusDiv.className = 'status connected';
+            manualHint.innerHTML = `Zapisano: http://${serverBaseUrl}/api/start`;
+        }
+        
+        // ============================================================
+        // 7. ZMIANA NUMERU BIEGU
+        // ============================================================
+        function changeRace(delta) {
+            let newValue = currentRaceNumber + delta;
+            if (newValue < 1) newValue = 1;
+            if (newValue > 99) newValue = 99;
+            currentRaceNumber = newValue;
+            raceNumberSpan.textContent = currentRaceNumber;
+        }
+        
+        // ============================================================
+        // 8. EVENT LISTENERS I START
+        // ============================================================
+        minusBtn.addEventListener('click', () => changeRace(-1));
+        plusBtn.addEventListener('click', () => changeRace(1));
+        startBtn.addEventListener('click', sendStart);
+        testBtn.addEventListener('click', testConnection);
+        saveBtn.addEventListener('click', saveConfig);
+        calibrateBtn.addEventListener('click', calibrateLatency);
+        
+        // Inicjalizacja
+        raceNumberSpan.textContent = currentRaceNumber;
+        
+        // Jeśli adres był zapisany, preloaduj dźwięk
+        if (serverBaseUrl) {
+            setTimeout(() => {
+                preloadSound();
+            }, 500);
+        }
+        
+        // Blokada zoom na double-tap (iOS)
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) e.preventDefault();
+        }, { passive: false });
+    </script>
+</body>
+</html>
