@@ -1,543 +1,82 @@
-<!DOCTYPE html>
-<html lang="pl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>START - System Pomiaru Czasu</title>
-    <style>
-        * {
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-        
-        body {
-            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0a0f1a 0%, #0f172a 100%);
-            color: #eee;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 16px;
-        }
-        
-        .container {
-            background: rgba(31, 41, 59, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 1.5rem;
-            border-radius: 48px;
-            box-shadow: 0 25px 45px rgba(0,0,0,0.3);
-            max-width: 500px;
-            width: 100%;
-            border: 1px solid rgba(233, 69, 96, 0.3);
-        }
-        
-        h1 {
-            margin: 0 0 0.5rem 0;
-            font-size: 2rem;
-            text-align: center;
-            color: #e94560;
-        }
-        
-        .subtitle {
-            text-align: center;
-            color: #94a3b8;
-            font-size: 0.85rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .race-control {
-            background: #1e293b;
-            border-radius: 60px;
-            padding: 0.5rem;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-        }
-        
-        .race-btn {
-            background: #334155;
-            border: none;
-            color: white;
-            font-size: 2rem;
-            font-weight: bold;
-            width: 64px;
-            height: 64px;
-            border-radius: 60px;
-            cursor: pointer;
-            transition: all 0.1s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        
-        .race-btn:active {
-            transform: scale(0.95);
-            background: #475569;
-        }
-        
-        .race-number {
-            font-size: 3rem;
-            font-weight: bold;
-            background: #0f172a;
-            padding: 0.5rem;
-            border-radius: 40px;
-            min-width: 120px;
-            text-align: center;
-            color: #e94560;
-            letter-spacing: 4px;
-        }
-        
-        .start-btn {
-            background: linear-gradient(135deg, #e94560, #c71a3a);
-            color: white;
-            border: none;
-            padding: 24px;
-            font-size: 2rem;
-            font-weight: bold;
-            border-radius: 60px;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.1s ease;
-            margin-bottom: 1.5rem;
-            text-transform: uppercase;
-            letter-spacing: 4px;
-            box-shadow: 0 8px 20px rgba(233, 69, 96, 0.3);
-        }
-        
-        .start-btn:active {
-            transform: scale(0.98);
-            box-shadow: 0 4px 10px rgba(233, 69, 96, 0.3);
-        }
-        
-        .last-time {
-            background: #0f172a;
-            padding: 0.75rem;
-            border-radius: 24px;
-            text-align: center;
-            margin-bottom: 1rem;
-            font-family: monospace;
-            font-size: 1.1rem;
-        }
-        
-        .last-time span {
-            color: #e94560;
-            font-size: 1.4rem;
-            font-weight: bold;
-        }
-        
-        .status {
-            background: #1e293b;
-            padding: 0.75rem;
-            border-radius: 16px;
-            font-size: 0.8rem;
-            text-align: center;
-            margin-top: 1rem;
-            word-break: break-all;
-        }
-        
-        .status.connected {
-            background: #064e3b;
-            color: #34d399;
-        }
-        
-        .status.error {
-            background: #7f1d1d;
-            color: #fca5a5;
-        }
-        
-        .status.success {
-            background: #065f46;
-            color: #6ee7b7;
-        }
-        
-        .config-panel {
-            background: #1e293b;
-            padding: 1rem;
-            border-radius: 24px;
-            margin-top: 1rem;
-        }
-        
-        .config-panel input {
-            width: 100%;
-            padding: 12px;
-            background: #0f172a;
-            border: 1px solid #334155;
-            border-radius: 12px;
-            color: white;
-            font-family: monospace;
-            font-size: 0.9rem;
-            margin-bottom: 8px;
-            box-sizing: border-box;
-        }
-        
-        .config-panel label {
-            font-size: 0.8rem;
-            color: #94a3b8;
-            display: block;
-            margin-bottom: 5px;
-        }
-        
-        .config-panel button {
-            padding: 10px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            margin-top: 8px;
-            width: 100%;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        
-        .test-btn {
-            background: #3b82f6;
-        }
-        
-        .save-btn {
-            background: #22c55e;
-        }
-        
-        .config-panel button:active {
-            transform: scale(0.98);
-        }
-        
-        .manual-url {
-            font-family: monospace;
-            font-size: 0.7rem;
-            color: #64748b;
-            text-align: center;
-            margin-top: 8px;
-            word-break: break-all;
-        }
-        
-        .sound-test {
-            background: #334155;
-            margin-top: 5px;
-        }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🔫 START</h1>
-        <div class="subtitle">System pomiaru czasu</div>
-        
-        <!-- Sterowanie numerem biegu -->
-        <div class="race-control">
-            <button class="race-btn" id="minusBtn">−</button>
-            <div class="race-number" id="raceNumber">1</div>
-            <button class="race-btn" id="plusBtn">+</button>
-        </div>
-        
-        <!-- Przycisk START -->
-        <button class="start-btn" id="startBtn">▶ START</button>
-        
-        <!-- Ostatni zapisany czas -->
-        <div class="last-time">
-            🕐 Ostatni start: <span id="lastTime">---</span>
-        </div>
-        
-        <!-- Status połączenia -->
-        <div class="status" id="status">
-            ⚡ Wpisz adres serwera
-        </div>
-        
-        <!-- Panel konfiguracji -->
-        <div class="config-panel">
-            <label>📡 Adres komputera (IP:port)</label>
-            <input type="text" id="serverUrl" placeholder="np. 192.168.1.100:3000">
-            <button class="test-btn" id="testBtn">🔌 TESTUJ POŁĄCZENIE</button>
-            <button class="save-btn" id="saveBtn">💾 ZAPISZ I UŻYWAJ</button>
-            <button class="sound-test" id="testSoundBtn" style="background:#8b5cf6;">🔊 TEST DŹWIĘKU</button>
-            <div class="manual-url" id="manualHint"></div>
-        </div>
-    </div>
+const express = require('express');
+const fs = require('fs');
+const path = require('path');
+const app = express();
+const port = 3000;
 
-    <script>
-        // --- Zmienne ---
-        let currentRaceNumber = 1;
-        let serverBaseUrl = localStorage.getItem('timerServerUrl') || '';
-        let audioElement = null;
-        
-        // --- Elementy DOM ---
-        const minusBtn = document.getElementById('minusBtn');
-        const plusBtn = document.getElementById('plusBtn');
-        const raceNumberSpan = document.getElementById('raceNumber');
-        const startBtn = document.getElementById('startBtn');
-        const lastTimeSpan = document.getElementById('lastTime');
-        const statusDiv = document.getElementById('status');
-        const serverUrlInput = document.getElementById('serverUrl');
-        const testBtn = document.getElementById('testBtn');
-        const saveBtn = document.getElementById('saveBtn');
-        const testSoundBtn = document.getElementById('testSoundBtn');
-        const manualHint = document.getElementById('manualHint');
-        
-        // --- Wczytaj zapisaną konfigurację ---
-        if (serverBaseUrl) {
-            serverUrlInput.value = serverBaseUrl;
-            statusDiv.innerHTML = `📡 Zapisan adres: ${serverBaseUrl}<br>✅ Kliknij "TESTUJ" aby potwierdzić`;
-        }
-        
-        // --- Funkcja do odtwarzania dźwięku z pliku MP3 ---
-        async function playStartSound() {
-            if (!serverBaseUrl) {
-                console.log("Brak adresu serwera");
-                return;
-            }
-            
-            // Przygotuj URL do pliku dźwiękowego
-            const soundUrl = `http://${serverBaseUrl}/start.mp3`;
-            
-            try {
-                // Metoda 1: Użyj Audio API
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.currentTime = 0;
-                }
-                
-                audioElement = new Audio(soundUrl);
-                audioElement.volume = 1.0;
-                
-                // Wymagane dla przeglądarek mobilnych - trzeba "obudzić" audio
-                audioElement.play().catch(e => {
-                    console.log("Auto-play blokowane, próbuję dalej...", e);
-                    // Alternatywna metoda - tworzenie nowego kontekstu
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    oscillator.frequency.value = 880;
-                    gainNode.gain.value = 0.3;
-                    oscillator.start();
-                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-                    oscillator.stop(audioCtx.currentTime + 0.2);
-                    
-                    if (audioCtx.state === 'suspended') {
-                        audioCtx.resume();
-                    }
-                });
-                
-                console.log("Odtwarzam dźwięk:", soundUrl);
-            } catch(e) {
-                console.warn("Błąd odtwarzania MP3, używam fallbacku", e);
-                // Fallback - syntetyczny dźwięk
-                try {
-                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    const oscillator = audioCtx.createOscillator();
-                    const gainNode = audioCtx.createGain();
-                    
-                    oscillator.connect(gainNode);
-                    gainNode.connect(audioCtx.destination);
-                    oscillator.frequency.value = 880;
-                    gainNode.gain.value = 0.3;
-                    oscillator.start();
-                    gainNode.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.5);
-                    oscillator.stop(audioCtx.currentTime + 0.2);
-                    
-                    if (audioCtx.state === 'suspended') {
-                        audioCtx.resume();
-                    }
-                } catch(e2) {
-                    console.error("Nawet fallback nie działa");
-                }
-            }
-        }
-        
-        // --- Test dźwięku ---
-        async function testSound() {
-            if (!serverBaseUrl) {
-                statusDiv.innerHTML = '❌ Najpierw wpisz adres serwera i zapisz konfigurację!';
-                statusDiv.className = 'status error';
-                return;
-            }
-            
-            const soundUrl = `http://${serverBaseUrl}/start.mp3`;
-            manualHint.innerHTML = `Testuję dźwięk: ${soundUrl}`;
-            
-            try {
-                // Najpierw sprawdź czy plik istnieje
-                const checkResponse = await fetch(soundUrl, { method: 'HEAD' });
-                if (!checkResponse.ok) {
-                    throw new Error(`Plik start.mp3 nie istnieje na serwerze (HTTP ${checkResponse.status})`);
-                }
-                
-                statusDiv.innerHTML = `🔊 Test dźwięku... (odtwarzam ${soundUrl})`;
-                statusDiv.className = 'status';
-                
-                const testAudio = new Audio(soundUrl);
-                testAudio.volume = 1.0;
-                await testAudio.play();
-                
-                statusDiv.innerHTML = `✅ Dźwięk działa! Plik start.mp3 jest dostępny.`;
-                statusDiv.className = 'status success';
-                setTimeout(() => {
-                    if (statusDiv.innerHTML.includes('Dźwięk działa')) {
-                        statusDiv.innerHTML = `✅ Gotowy. Dźwięk załadowany.`;
-                    }
-                }, 2000);
-            } catch (error) {
-                console.error('Błąd dźwięku:', error);
-                statusDiv.innerHTML = `❌ BŁĄD: ${error.message}<br><br>📌 Upewnij się, że:<br>1. Plik start.mp3 jest w folderze serwera<br>2. Serwer został zrestartowany po dodaniu pliku<br>3. Plik nazywa się dokładnie "start.mp3" (małe litery)`;
-                statusDiv.className = 'status error';
-            }
-        }
-        
-        // --- Test połączenia ---
-        async function testConnection() {
-            let url = serverUrlInput.value.trim();
-            if (!url) {
-                statusDiv.innerHTML = '❌ Wpisz adres serwera! (np. 192.168.1.100:3000)';
-                statusDiv.className = 'status error';
-                return false;
-            }
-            
-            url = url.replace(/^https?:\/\//, '');
-            url = url.replace(/\/$/, '');
-            
-            const fullUrl = `http://${url}/api/starts`;
-            
-            statusDiv.innerHTML = `🔄 Łączę z ${fullUrl}...`;
-            statusDiv.className = 'status';
-            manualHint.innerHTML = `Testuję: ${fullUrl}`;
-            
-            try {
-                const response = await fetch(fullUrl, {
-                    method: 'GET',
-                    mode: 'cors'
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    const count = Array.isArray(data) ? data.length : '?';
-                    statusDiv.innerHTML = `✅ POŁĄCZONO! ✅<br>Serwer działa, odebrano ${count} startów.<br>Adres: ${url}`;
-                    statusDiv.className = 'status connected';
-                    serverBaseUrl = url;
-                    manualHint.innerHTML = `✅ Połączenie działa! Kliknij "ZAPISZ" a potem "TEST DŹWIĘKU".`;
-                    return true;
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-            } catch (error) {
-                console.error('Test error:', error);
-                statusDiv.innerHTML = `❌ BRAK POŁĄCZENIA ❌<br>Nie mogę połączyć się z ${url}<br><br>📌 SPRAWDŹ:<br>1. Czy serwer działa? (node server.js)<br>2. Czy adres jest poprawny?<br>3. Czy telefon i komputer w tej samej WiFi?`;
-                statusDiv.className = 'status error';
-                return false;
-            }
-        }
-        
-        // --- Zapis konfiguracji ---
-        function saveConfig() {
-            const url = serverUrlInput.value.trim();
-            if (!url) {
-                statusDiv.innerHTML = '❌ Wpisz adres serwera!';
-                return;
-            }
-            
-            const cleanUrl = url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-            serverBaseUrl = cleanUrl;
-            localStorage.setItem('timerServerUrl', serverBaseUrl);
-            
-            statusDiv.innerHTML = `💾 Zapisano: ${serverBaseUrl}<br>✅ Gotowy do użycia! Kliknij "TEST DŹWIĘKU" aby sprawdzić.`;
-            statusDiv.className = 'status connected';
-            manualHint.innerHTML = `Zapisano: http://${serverBaseUrl}/api/start`;
-        }
-        
-        // --- WYSYŁANIE STARTU ---
-        async function sendStart() {
-            if (!serverBaseUrl) {
-                statusDiv.innerHTML = '❌ Najpierw wpisz adres i kliknij "ZAPISZ I UŻYWAJ"!';
-                statusDiv.className = 'status error';
-                return;
-            }
-            
-            const fullUrl = `http://${serverBaseUrl}/api/start`;
-            const currentTime = getFormattedTime();
-            
-            // Odtwórz dźwięk z pliku MP3
-            await playStartSound();
-            
-            if (navigator.vibrate) navigator.vibrate(50);
-            
-            lastTimeSpan.innerHTML = `${currentTime} (Bieg ${currentRaceNumber})`;
-            statusDiv.innerHTML = `📤 Wysyłanie do ${serverBaseUrl}...`;
-            statusDiv.className = 'status';
-            
-            try {
-                const response = await fetch(fullUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        raceNumber: currentRaceNumber,
-                        time: currentTime,
-                        timestamp: new Date().toISOString()
-                    })
-                });
-                
-                if (response.ok) {
-                    statusDiv.innerHTML = `✅ WYSŁANO! 🎯<br>Bieg ${currentRaceNumber} | Czas: ${currentTime}`;
-                    statusDiv.className = 'status success';
-                    
-                    if (navigator.vibrate) navigator.vibrate(100);
-                    
-                    setTimeout(() => {
-                        if (statusDiv.innerHTML.includes('WYSŁANO')) {
-                            statusDiv.innerHTML = `✅ Gotowy. Serwer: ${serverBaseUrl}`;
-                            statusDiv.className = 'status connected';
-                        }
-                    }, 3000);
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-            } catch (error) {
-                console.error('Send error:', error);
-                statusDiv.innerHTML = `❌ BŁĄD WYSYŁANIA!<br>${error.message}<br><br>Sprawdź czy serwer działa:<br>http://${serverBaseUrl}/api/starts`;
-                statusDiv.className = 'status error';
-            }
-        }
-        
-        // --- Formatowanie czasu ---
-        function getFormattedTime() {
-            const now = new Date();
-            const hours = now.getHours().toString().padStart(2, '0');
-            const minutes = now.getMinutes().toString().padStart(2, '0');
-            const seconds = now.getSeconds().toString().padStart(2, '0');
-            const ms = now.getMilliseconds().toString().padStart(3, '0');
-            return `${hours}:${minutes}:${seconds}.${ms}`;
-        }
-        
-        // --- Zmiana numeru biegu ---
-        function changeRace(delta) {
-            let newValue = currentRaceNumber + delta;
-            if (newValue < 1) newValue = 1;
-            if (newValue > 99) newValue = 99;
-            currentRaceNumber = newValue;
-            raceNumberSpan.textContent = currentRaceNumber;
-        }
-        
-        // --- Event Listeners ---
-        minusBtn.addEventListener('click', () => changeRace(-1));
-        plusBtn.addEventListener('click', () => changeRace(1));
-        startBtn.addEventListener('click', sendStart);
-        testBtn.addEventListener('click', testConnection);
-        saveBtn.addEventListener('click', saveConfig);
-        testSoundBtn.addEventListener('click', testSound);
-        
-        // --- Inicjalizacja ---
-        raceNumberSpan.textContent = currentRaceNumber;
-        
-        // Automatyczny test przy starcie jeśli jest zapisany adres
-        if (serverBaseUrl) {
-            setTimeout(() => {
-                testConnection();
-            }, 500);
-        }
-    </script>
-</body>
-</html>
+// CORS - pozwala telefonom na wysyłanie
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    next();
+});
+
+app.use(express.json());
+
+// Udostępnianie plików statycznych (w tym start.mp3)
+app.use(express.static(__dirname));
+
+let starts = [];
+
+// Zapis startu (czas z telefonu - moment naciśnięcia)
+app.post('/api/start', (req, res) => {
+    const { raceNumber, time, timestamp, latencyCompensation } = req.body;
+    
+    const startRecord = {
+        id: Date.now(),
+        raceNumber: raceNumber,
+        time: time,              // czas z momentu naciśnięcia!
+        serverTime: new Date().toISOString(),
+        timestamp: timestamp,
+        latencyCompensation: latencyCompensation || 0
+    };
+    
+    starts.push(startRecord);
+    
+    // Backup do pliku
+    fs.writeFileSync('starts.json', JSON.stringify(starts, null, 2));
+    
+    console.log(`\n🏁 ${new Date().toLocaleTimeString()} - ODEBRANO START!`);
+    console.log(`   Bieg: ${raceNumber}`);
+    console.log(`   Czas startu: ${time}`);
+    console.log(`   Kompensacja: ${latencyCompensation || 0}ms`);
+    
+    res.json({ success: true, id: startRecord.id });
+});
+
+// Odczyt wszystkich startów
+app.get('/api/starts', (req, res) => {
+    res.json(starts);
+});
+
+// Kasowanie wszystkich startów
+app.delete('/api/starts', (req, res) => {
+    starts = [];
+    fs.writeFileSync('starts.json', JSON.stringify(starts));
+    console.log('\n🗑️ Wszystkie starty zostały usunięte!');
+    res.json({ success: true });
+});
+
+// Informacja o stanie
+app.get('/api/status', (req, res) => {
+    res.json({
+        status: 'running',
+        startCount: starts.length,
+        serverTime: new Date().toISOString()
+    });
+});
+
+// Uruchomienie serwera
+app.listen(port, '0.0.0.0', () => {
+    console.log(`\n${'='.repeat(50)}`);
+    console.log(`✅ SYSTEM POMIARU CZASU - SERWER DZIAŁA`);
+    console.log(`${'='.repeat(50)}`);
+    console.log(`📱 Adres dla telefonu: http://TWOJ_IP:${port}`);
+    console.log(`🔊 Sprawdź dźwięk: http://TWOJ_IP:${port}/start.mp3`);
+    console.log(`📊 Wyniki: http://localhost:${port}/api/starts`);
+    console.log(`${'='.repeat(50)}\n`);
+});
